@@ -1,0 +1,41 @@
+# devenv input for the simdjson Zig SDK.
+#
+# One input, pinned by revision. It is `cachix/devenv-nixpkgs` rather than the
+# `NixOS/nixpkgs` the flake names, because devenv bootstraps from its own
+# channel -- the same reason every other SDK in this workspace pins that
+# repository here. The two entry points resolve in different contexts and are
+# pinned independently: flake.nix's revision is the one `flake.lock` carries,
+# and this one is what a shell is reproducible from.
+#
+# There is deliberately no `flake:` key on this input. `flake: false` makes
+# devenv read the input as a plain source tree, and a plain source tree has no
+# `lib`, so every devenv subcommand dies inside its own bootstrap before it ever
+# reads this repository: its `bootstrapLib.nix` evaluates `lib = nixpkgs.lib` and
+# the run ends with `error: attribute 'lib' missing`. The revision pin is the
+# whole contract.
+#
+# The lock itself is the driver's to create and to maintain; this file does not
+# write it, and nothing in this repository's path lists names it. What the lock
+# must pin when the driver creates it:
+#
+#   * `inputs.nixpkgs` -- the revision below, and no other. A shell that
+#     resolved a moving nixpkgs channel would not be reproducible, and this
+#     repository's build graph is pinned to Zig 0.16.0 and reads its own API
+#     shapes out of that compiler's `lib/std`; a different nixpkgs can resolve
+#     `zig_0_16` to a different patch release.
+#   * `inputs.nixpkgs.flake` -- false, for the reason above. A lock that
+#     recorded it as true would resolve this repository's `devenv.nix` as a flake
+#     input, which needs the driver-owned `flake.lock` this package does not
+#     use.
+#   * `rootPath` -- the directory holding this file, so `devenv shell` entered
+#     anywhere resolves this repository rather than the directory the caller
+#     happened to be standing in.
+#
+# Nothing here names a host account, a node, a store path, a scratch mount or a
+# workspace sibling.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+inputs:
+  nixpkgs:
+    url: "github:cachix/devenv-nixpkgs/c2f38fe7f9e04d9aadd354d380f2bd40531d9737"

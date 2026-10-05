@@ -1,0 +1,77 @@
+# Upstream's own ignore conventions, kept verbatim. Nothing above this line is
+# ours, and nothing below it removes an upstream entry to make room for a
+# fork-owned one.
+#
+# simdjson's release tarball ships no `.gitignore` at all, so the first block is
+# this fork's reading of what upstream's *build system* produces rather than a
+# copy of an upstream file. The entries come from upstream's own CMake
+# definitions: `src/CMakeLists.txt:204` is the single source file
+# `src/src/simdjson.cpp`, and every object and archive in a CMake build is
+# derived from it, so `*.o`, `*.a` and `*.obj` are the outputs a build leaves in
+# the source tree. The Windows entries are there because upstream's CMake has
+# real Windows and MSVC targets: `src/windows/` carries the mingw-w64 and NetBSD
+# derived files its build uses, and `src/CMakeLists.txt:256` sets
+# `WINDOWS_EXPORT_ALL_SYMBOLS YES`, so a Windows build produces a `.dll`, an
+# import `.lib` and a `.exp`. None of them is produced by this package's Zig
+# graph, which builds with `zig build` and installs to `--prefix` -- they are
+# listed so a `cmake` run left in the tree cannot be committed into a tree that is
+# built with Zig instead.
+*.o
+*.a
+*.so
+*.so.*
+*.obj
+*.lib
+*.exp
+*.pdb
+*.ilk
+*.dll
+*.exe
+*.manifest
+*.dmp
+*.swp
+
+# The amalgamated single-header output, ignored even though the three files it
+# would produce are deliberately absent from `src/` (see UPSTREAM.md). This is a
+# belt-and-braces entry: `tools/check-provenance.sh` fails if they reappear, and
+# this stops a build from staging one before the gate runs.
+src/singleheader/simdjson.h
+src/singleheader/simdjson.cpp
+src/singleheader/singleheader.zip
+
+# zig build artefacts (fork addition).
+#
+# These are directories rather than single files because a normal `zig build`
+# creates them, and a normal `zig build` must not dirty the tree or leak into the
+# package published from it. None of them is named in build.zig.zon `.paths`, so
+# an ignored directory can never become part of the package.
+.zig-cache/
+zig-out/
+# Zig 0.16 fetches dependencies into a project-local directory. This package
+# declares no dependencies, so this exists only so that a future one cannot
+# commit a fetched tree.
+zig-pkg/
+
+# The consumer package builds inside this repository and has its own cache and
+# output tree. It is ignored here as well as in consumer/.gitignore so a build
+# run from the repository root cannot commit it by accident.
+consumer/.zig-cache/
+consumer/zig-out/
+consumer/zig-pkg/
+
+# Nix and devenv working-tree artefacts (fork addition).
+#
+# `nix build` writes `result` (and `result-1`, `result-2`, ... on a rebuild)
+# into the directory that asked for it, and `devenv` writes its resolved inputs
+# and its state beside the project. None of them is named in build.zig.zon
+# `.paths`, so an ignored path can never become part of the package either.
+# `devenv.lock` and `flake.lock` are deliberately *not* here: they are real
+# inputs, they belong to the driver, and ignoring them would be the wrong way to
+# keep a build out of a commit.
+result
+result-*
+.devenv/
+.devenv.flake.nix
+.devenv.flakes/
+devenv.local.nix
+.direnv/
