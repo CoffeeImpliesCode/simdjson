@@ -127,7 +127,6 @@
         // upstream's, for upstream's CI on upstream's infrastructure -- and they
         // are inert here because they are not at this repository's
         // `.github/workflows/` path. See `AGENTS.md` §3 and `NOTICE.md`.
-        ".github/workflows/verify.yml",
         // Standalone Nix packaging. `package.nix` is the one source-only
         // derivation and builds the `static` and `shared` variants of this same
         // tree; `flake.nix` exposes them; `devenv.nix`, `devenv.yaml` and
