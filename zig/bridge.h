@@ -15,7 +15,7 @@
  * Why a bridge at all: `addTranslateC` translates C, and the upstream library
  * is C++17 with class hierarchies, namespace aliases bound to a
  * compile-time-selected kernel, and `simdjson_result<T>` return types.  Zig
- * 0.16 does not translate a C++ header, so the C surface a Zig caller needs is
+ * 0.17.0 does not translate a C++ header, so the C surface a Zig caller needs is
  * written once, here, as a header the translator can read and a translation
  * unit the compiler can compile.  This header is therefore plain C99 with
  * `extern "C"` guards: it must stay parseable by a C translator, not only by a
