@@ -1,114 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 .{
-    // The package id, the name a dependent writes in its dependency map, the
-    // one registered module -- `dep.module("simdjson")` -- and the artifact
-    // name, which is why all four are the same string and why `zig build`
-    // installs `libsimdjson.a` or `libsimdjson.so.34.0.0`. `build_support/graph.zig`
-    // names the last two as one `artifact_name` constant, because the panic a
-    // runtime-loaded build prints, the `.pc` record and the module a dependent
-    // imports must not be able to disagree.
     .name = .simdjson,
-    // Upstream's release, read out of `src/include/simdjson/simdjson_version.h:7`
-    // (`#define SIMDJSON_VERSION "5.0.2"`), which `src/CMakeLists.txt:15` and
-    // the `Version:` template at `simdjson.pc.in:8` both resolve to. This is the
-    // version of the C++ library
-    // this package builds, not a version of the wrapper. `build.zig` compares it
-    // against the same constant and refuses to configure when the two disagree,
-    // so this string, the generated `simdjson.pc` `Version:` field and
-    // `package.nix`'s `version` cannot describe three different releases.
-    //
-    // It is *not* the ABI number. `src/CMakeLists.txt:32-33` set
-    // `SIMDJSON_LIB_VERSION "34.0.0"` and `SIMDJSON_LIB_SOVERSION "34"`, and the
-    // shared object this graph delivers is `libsimdjson.so.34.0.0` with soname
-    // `libsimdjson.so.34`. `UPSTREAM.md` explains the two numbers; see
-    // `build_support/graph.zig:abi_version`.
     .version = "5.0.2",
-    // A fixed namespace for the build cache, not a digest of anything. Zig
-    // derives one with `zig build` and prints a suggestion when a manifest has
-    // none; this value was chosen once for this package and is deliberately not
-    // claimed to be a hash of its name, its version or its contents. Changing it
-    // invalidates every cache entry for this package and nothing else.
     .fingerprint = 0xcb48777c191ed839,
     .minimum_zig_version = "0.16.0",
-    // Nothing is fetched. The C++ library is this repository's own `src/`, the
-    // facade, tests, example, consumer and runtime table import only what is
-    // compiled here, and the only dependency in the workspace is the separate
-    // `consumer/` package -- which is a *dependent* of this one, not a
-    // dependency of it, and resolves it by relative path. simdjson's release is
-    // the tarball already unpacked into `src/`, with its digest in
-    // `UPSTREAM.sha256`.
     .dependencies = .{},
     .paths = .{
         "build.zig",
         "build.zig.zon",
-        // The per-target assembly of the module, the flags and the archive. It
-        // travels because `build.zig` imports it and because `runtime/graph.zig`
-        // and every document in this package name `addGraph`,
-        // `artifact_name`, `bridge_abi_symbols` and `required_targets` as the
-        // seam's public surface. A dependent that fetched this package without
-        // it could not configure.
         "build_support",
-        // The cross-test harness profile for this package. It is a file in the
-        // package because it is how this package declares what its
-        // cross-platform gate is: `cross-test` discovers it by name from the
-        // package root, and it is settings only -- the standard `zig build test`
-        // step over the full published platform matrix, no target subset and no
-        // host path. Nothing in `build.zig` reads it.
         "cross-test.profile.sh",
-        // `zig/root.zig` is the typed facade, `zig/bridge.h` the C ABI both the
-        // translation and the compiled core agree on, `zig/bridge.cc` the only
-        // C++ unit that is not upstream's bytes, and `zig/translate.h` the
-        // aggregate header `translate-c` reads. All four travel because a
-        // dependent reaches them through `dep.module("simdjson")`.
         "zig",
-        // Upstream's simdjson, unmodified: the complete 5.0.2 release source
-        // closure -- 771 files, 10317170 bytes -- together with upstream's own
-        // CMake tree, its tests, benchmarks, fuzzers, documentation, json
-        // examples, both licence texts and its `AUTHORS`/`CONTRIBUTORS`. The
-        // whole directory travels rather than a hand-picked file list so that
-        // the tree a dependent receives is upstream's tree: nothing here is
-        // edited, re-entered or regenerated, and a build that needed a file not
-        // in this closure would have to edit upstream to get it.
-        //
-        // Three files of the release tarball are deliberately absent --
-        // `src/singleheader/simdjson.h`, `simdjson.cpp` and `singleheader.zip`,
-        // the generated amalgamation. Their absence is recorded in
-        // `UPSTREAM.sha256:19-34` and enforced by `tools/check-provenance.sh`,
-        // and the reason is that this build compiles upstream's own
-        // `src/src/simdjson.cpp` directly, so an amalgamated copy of the same
-        // sources beside it would be a second, buildable, drifting copy of the
-        // core with nothing keeping the two in step. The generator that makes
-        // them, `src/singleheader/amalgamate.py`, is carried.
         "src",
-        // This package's own fixtures. They are not upstream files: they are
-        // transcribed from RFC 8259, copied from upstream's own
-        // `src/jsonexamples/twitter.json`, or authored for a specific
-        // behaviour. `testdata/README.md` records which is which and why each one
-        // exists, and `tests.zig` reads them through the build-created
-        // `simdjson_paths` module.
         "testdata",
         "tests.zig",
         "smoke.zig",
-        // The separate consumer package: proof that the published module
-        // resolves from a package that did not write it, through a relative
-        // path rather than a fetch.
         "consumer/build.zig",
         "consumer/build.zig.zon",
         "consumer/src/main.zig",
-        // The runtime loader core the API role owns, this library's generated
-        // dispatch and descriptor beside it, and the build-time dispatch
-        // generator. `runtime/graph.zig` is the one place
-        // `build_support/graph.zig:createModule` substitutes for
-        // `translate.createModule()`, and the four copied-from-core files
-        // (`loader.zig`, `generate.zig`, `sync.c`, `sync.h`) are a dependency of
-        // the published module under `-Druntime`, so a dependent that fetches
-        // this package must receive them. See `FORK-LICENSE.md` §5 for where
-        // those four came from.
         "runtime",
-        // Upstream's release note, preserved byte for byte as the record it is,
-        // and the licence and provenance records this fork added around it.
-        // `src/LICENSE` and `src/LICENSE-MIT` are already in the closure above:
-        // simdjson is dual Apache-2.0 / MIT and both texts ship unaltered.
         "README.upstream.md",
         "UPSTREAM.md",
         "UPSTREAM.sha256",
@@ -119,29 +29,11 @@
         "FORK-NOTES.md",
         "FORK-LICENSE.md",
         "testdata/README.md",
-        // The provenance script that checks the recorded digests and the exact
-        // upstream file set.
         "tools",
-        // This fork's own verification workflow. **Not** upstream's: every file
-        // under `src/.github/` is carried untouched -- all 45 workflows there are
-        // upstream's, for upstream's CI on upstream's infrastructure -- and they
-        // are inert here because they are not at this repository's
-        // `.github/workflows/` path. See `AGENTS.md` §3 and `NOTICE.md`.
-        // Standalone Nix packaging. `package.nix` is the one source-only
-        // derivation and builds the `static` and `shared` variants of this same
-        // tree; `flake.nix` exposes them; `devenv.nix`, `devenv.yaml` and
-        // `.envrc` provide the canonical development shell. `flake.lock` is a
-        // driver-owned input and is deliberately absent from this list until it
-        // exists: naming a path that is not there would make `zig fetch` hash a
-        // missing entry.
         "package.nix",
         "flake.nix",
         "devenv.nix",
         "devenv.yaml",
         ".envrc",
-        // .zig-cache/, zig-out/, zig-pkg/, consumer/.zig-cache/ and the Nix and
-        // devenv working-tree artefacts are deliberately absent: build outputs,
-        // a fetched package tree, a `result` symlink and shell state are not
-        // part of a package. See .gitignore.
     },
 }
