@@ -32,6 +32,8 @@ The bridge checks arguments with comparisons, keeps bridge statuses separate fro
 - `-Druntime=true` changes dispatch, not delivery. The package still builds and installs its artifact, while the facade loads an explicit provider and links no archive.
 - COFF shared builds use a generated `.def` export list. ELF builds have no version script. Darwin builds do not restrict exports to the eleven C entry points, so consumers must resolve names explicitly.
 - `check` compiles the facade, tests and example for the six required targets. It does not run them.
+- The nested consumer uses make-time cache and install-prefix paths; 0.17 hides executor and libc-runtime settings, so cross-target builds install instead of running.
+- Zig 0.17 nested builds inherit `ZIG_GLOBAL_CACHE_DIR` and `ZIG_LIB_DIR`; `zig build` rejects the corresponding command-line flags.
 
 ## Platform boundaries
 

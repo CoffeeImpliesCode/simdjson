@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Big-endian AArch64 builds use the scalar kernel; LoongArch builds receive the kernel capability values required by upstream.
+- Port to Zig 0.17.0.
+- Consumer builds no longer use optional third-party executors; cross-target builds install to the SDK prefix.
 - Validate UTF-8 before stage 1 so invalid input returns `UTF8_ERROR` on every kernel.
 - Resolve thread and AVX-512 settings from the target, fixing WASI and baseline x86-64 cross-builds.
 - Bounded walks finish on short output buffers and report the required record count.

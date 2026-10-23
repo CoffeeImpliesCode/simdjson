@@ -840,7 +840,7 @@ test "a Walk read after deinit yields no values rather than a fault" {
 
 test "the walk's allocations are returned to the allocator that made them" {
     // Both walk buffers return to the allocator that created them.
-    var debug: std.heap.DebugAllocator(.{}) = .init;
+    var debug: std.heap.SafeAllocator = .init(std.heap.page_allocator, .{});
     const allocator = debug.allocator();
 
     {
@@ -852,7 +852,7 @@ test "the walk's allocations are returned to the allocator that made them" {
         try testing.expectEqual(@as(usize, 0), walk.count());
     }
 
-    try testing.expectEqual(@as(usize, 0), debug.detectLeaks());
+    try testing.expectEqual(@as(usize, 0), debug.deinit());
 }
 
 test "the twitter fixture: 631515 bytes, walked to a counted total" {

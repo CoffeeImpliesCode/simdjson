@@ -4,8 +4,8 @@
 { pkgs, ... }:
 
 let
-  # Use the pinned Zig 0.16.0 compiler.
-  zig = pkgs.zig_0_16;
+  # Use the pinned Zig 0.17.0 compiler.
+  zig = pkgs.zig_0_17;
 
   # Build the same Nix derivation as flake.nix.
   mk = linkage: pkgs.callPackage ./package.nix { inherit zig linkage; };
@@ -77,8 +77,8 @@ in
 
   assertions = [
     {
-      assertion = zig.version == "0.16.0";
-      message = "The simdjson SDK requires Zig 0.16.0; nixpkgs resolved zig_0_16 to ${zig.version}";
+      assertion = zig.version == "0.17.0";
+      message = "The simdjson SDK requires Zig 0.17.0; nixpkgs resolved zig_0_17 to ${zig.version}";
     }
   ];
 

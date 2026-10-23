@@ -436,7 +436,7 @@ pub const Options = struct {
     /// Which delivery the caller asked for. What it selects is the artifact and
     /// nothing else about the compilation: both variants compile the same two
     /// translation units at the same flags.
-    requested: std.builtin.LinkMode,
+    requested: std.lang.LinkMode,
     /// Whether the module dispatches through the runtime loader instead of a
     /// link line. Orthogonal to `requested`, which still decides which artifact
     /// this target builds and installs: delivery and dispatch are separate
@@ -466,7 +466,7 @@ pub const Graph = struct {
     /// dispatch describes.
     translate: *std.Build.Step.TranslateC,
     /// The linkage this target can actually carry, after the refusal below.
-    delivered: std.builtin.LinkMode,
+    delivered: std.lang.LinkMode,
     /// The artifact name this graph reports. The published graph says
     /// `artifact_name`; a check graph carries the target triple, because six
     /// steps all called "simdjson" make `--summary all` impossible to read.
@@ -485,7 +485,7 @@ pub const Graph = struct {
 pub fn addGraph(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
+    optimize: std.lang.Optimize,
     options: Options,
 ) Graph {
     const delivered = deliveredLinkage(target, options.requested);
@@ -562,8 +562,8 @@ pub fn addGraph(
 fn addLibrary(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    delivered: std.builtin.LinkMode,
+    optimize: std.lang.Optimize,
+    delivered: std.lang.LinkMode,
     name: []const u8,
 ) *std.Build.Step.Compile {
     const files = b.addWriteFiles();
@@ -642,7 +642,7 @@ fn addLibrary(
 fn addTranslate(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
+    optimize: std.lang.Optimize,
 ) *std.Build.Step.TranslateC {
     const translate = b.addTranslateC(.{
         .root_source_file = b.path(translate_header),
@@ -714,9 +714,7 @@ fn installHeaders(b: *std.Build, library: *std.Build.Step.Compile) void {
 /// runtime allocation would both be work whose result cannot vary.
 const def_file = def_file_comptime();
 
-/// The body of `def_file`, as a comptime block rather than a `for` expression:
-/// Zig 0.16 has no `for`-expression, so the accumulation is a `var` rebinding.
-/// Same result, same comptime evaluation.
+/// Builds the export list at comptime from the fixed symbol table.
 fn def_file_comptime() []const u8 {
     const indent = "    ";
     var out: []const u8 = "EXPORTS\n";
@@ -766,8 +764,8 @@ pub fn targetHasDynamicLinker(target: std.Build.ResolvedTarget) bool {
 /// different linkages.
 pub fn deliveredLinkage(
     target: std.Build.ResolvedTarget,
-    requested: std.builtin.LinkMode,
-) std.builtin.LinkMode {
+    requested: std.lang.LinkMode,
+) std.lang.LinkMode {
     if (requested == .dynamic and !targetHasDynamicLinker(target)) {
         // `std.debug.panic` with a format string, not `@panic` on a
         // concatenated one: `@tagName` of a run-time tag is not comptime known

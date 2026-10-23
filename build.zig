@@ -2,7 +2,7 @@
 // See FORK-LICENSE.md for the grant over this fork's own files, and NOTICE.md
 // for the terms that cover everything under src/.
 //
-//! Zig 0.16 build for simdjson 5.0.2.
+//! Zig 0.17 build for simdjson 5.0.2.
 //! `-Dcpu` selects the compiled SIMD kernel; On-Demand has no runtime fallback.
 const std = @import("std");
 
@@ -35,7 +35,7 @@ const paths_module = "simdjson_paths";
 
 fn addPathsModule(b: *std.Build) *std.Build.Step.Options {
     const options = b.addOptions();
-    options.addOptionPath("fixture_dir", b.path(fixture_dir));
+    options.addOptionPathDirectory("fixture_dir", b.path(fixture_dir));
     return options;
 }
 
@@ -62,8 +62,8 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Linkage selects the artifact; runtime loading independently selects dispatch.
-    const linkage: std.builtin.LinkMode = b.option(
-        std.builtin.LinkMode,
+    const linkage: std.lang.LinkMode = b.option(
+        std.lang.LinkMode,
         "linkage",
         "Deliver the native library as a static archive (the default, and what " ++
             "upstream's own CMakeLists.txt produces) or as a real shared object " ++
@@ -123,8 +123,7 @@ pub fn build(b: *std.Build) void {
 
     // Keep the run step separate from installation.
     const run_example = b.addRunArtifact(example);
-    run_example.has_side_effects = true;
-    if (b.args) |args| run_example.addArgs(args);
+    run_example.addPassthruArgs();
     b.step("smoke", "Run the deterministic example program").dependOn(&run_example.step);
 
     // Attach test blocks directly so the runner discovers them.
@@ -224,8 +223,8 @@ fn add_target_check(
     b: *std.Build,
     step: *std.Build.Step,
     query: std.Target.Query,
-    optimize: std.builtin.OptimizeMode,
-    linkage: std.builtin.LinkMode,
+    optimize: std.lang.Optimize,
+    linkage: std.lang.LinkMode,
     runtime_loaded: bool,
 ) void {
     const cross_target = b.resolveTargetQuery(query);
@@ -278,8 +277,8 @@ fn add_target_check(
 fn runConsumer(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    linkage: std.builtin.LinkMode,
+    optimize: std.lang.Optimize,
+    linkage: std.lang.LinkMode,
     runtime_loaded: bool,
 ) *std.Build.Step.Run {
     const triple = target.query.zigTriple(b.allocator) catch @panic("OOM");
@@ -292,6 +291,11 @@ fn runConsumer(
     const run = b.addSystemCommand(&.{ b.graph.zig_exe, "build" });
     run.setName("consumer package");
     run.setCwd(b.path("consumer"));
+    inline for (.{ "ZIG_GLOBAL_CACHE_DIR", "ZIG_LIB_DIR" }) |key| {
+        if (b.graph.environ_map.get(key)) |value| {
+            run.setEnvironmentVariable(key, value);
+        }
+    }
     run.addArg(if (hostCanExecute(b, target)) "run" else "install");
     run.addArg(b.fmt("-Dtarget={s}", .{triple}));
     run.addArg(b.fmt("-Dcpu={s}", .{cpu}));
@@ -299,72 +303,42 @@ fn runConsumer(
     // Forward linkage and runtime mode to the nested build.
     run.addArg(b.fmt("-Dlinkage={s}", .{@tagName(linkage)}));
     run.addArg(b.fmt("-Druntime={s}", .{if (runtime_loaded) "true" else "false"}));
-    if (b.enable_darling) run.addArg("-fdarling");
-    if (b.enable_qemu) run.addArg("-fqemu");
-    if (b.enable_rosetta) run.addArg("-frosetta");
-    if (b.enable_wasmtime) run.addArg("-fwasmtime");
-    if (b.enable_wine) run.addArg("-fwine");
-    if (b.libc_runtimes_dir) |runtimes| run.addArgs(&.{ "--libc-runtimes", runtimes });
     // Keep job count and summary explicit for the nested build.
     run.addArg("-j8");
     run.addArg("--summary");
     run.addArg("all");
-    // Use the consumer working directory when no cache root is set.
-    if (b.cache_root.path) |cache| {
-        run.addArg("--cache-dir");
-        run.addArg(b.fmt("{s}/consumer", .{cache}));
-    }
-    // Reuse the caller's global cache.
-    if (b.graph.global_cache_root.path) |global_cache| {
-        run.addArg("--global-cache-dir");
-        run.addArg(global_cache);
-    }
-    // Make the caller's install prefix absolute before forwarding it.
-    const default_prefix = b.build_root.join(b.allocator, &.{"zig-out"}) catch @panic("OOM");
-    if (!std.mem.eql(u8, b.install_prefix, default_prefix)) {
-        const prefix = if (std.fs.path.isAbsolute(b.install_prefix))
-            b.install_prefix
-        else
-            b.pathJoin(&.{ b.graph.cache.cwd, b.install_prefix });
-        run.addArg("--prefix");
-        run.addArg(prefix);
-    }
+    const local_cache = std.Build.LazyPath.cache_root.join(b.allocator, "consumer") catch
+        @panic("OOM");
+    run.addArg("--cache-dir");
+    run.addDirectoryArg2(local_cache, .{ .make_absolute = true });
+    run.addArg("--prefix");
+    run.addDirectoryArg2(.{ .relative = .{ .base = .install_prefix } }, .{
+        .make_absolute = true,
+    });
     // Forward program arguments after `--`.
-    if (b.args) |args| {
-        run.addArg("--");
-        run.addArgs(args);
-    }
-    // The nested build is the step's only observable effect.
-    run.has_side_effects = true;
+    run.addArg("--");
+    run.addPassthruArgs();
     return run;
 }
 
-/// Whether the selected target can run with the configured executors.
+/// Whether the selected target can run without an optional executor.
 fn hostCanExecute(b: *std.Build, target: std.Build.ResolvedTarget) bool {
     const host = &b.graph.host.result;
     const candidate = &target.result;
     const options: std.zig.system.GetExternalExecutorOptions = .{
-        .allow_darling = b.enable_darling,
-        .allow_qemu = b.enable_qemu,
-        .allow_wasmtime = b.enable_wasmtime,
-        .allow_wine = b.enable_wine,
-        // Match Run's cross-libc behavior.
-        .qemu_fixes_dl = candidate.isGnuLibC() and b.libc_runtimes_dir != null,
+        .host_cpu_arch = host.cpu.arch,
+        .host_os_tag = host.os.tag,
+        .link_mode = .dynamic,
         .link_libc = true,
     };
-    return switch (std.zig.system.getExternalExecutor(b.graph.io, host, candidate, options)) {
-        .native, .rosetta => true,
-        // Match the enabled executor switches.
-        .wine, .wasmtime, .darling => true,
-        // QEMU GNU libc needs runtime libraries.
-        .qemu => !(candidate.isGnuLibC() and b.libc_runtimes_dir == null),
-        // Reject targets without a compatible executor.
-        .bad_dl, .bad_os_or_cpu => false,
+    return switch (std.zig.system.getExternalExecutor(b.graph.io, candidate, options)) {
+        .native => true,
+        .rosetta, .qemu, .wine, .wasmtime, .darling, .bad_dl, .bad_os_or_cpu => false,
     };
 }
 
 /// Install the prefix-relative pkg-config file for the selected linkage.
-fn add_pkg_config(b: *std.Build, delivered: std.builtin.LinkMode) void {
+fn add_pkg_config(b: *std.Build, delivered: std.lang.LinkMode) void {
     const files = b.addWriteFiles();
     // Add the generated file to the install graph.
     const install_pc = b.addInstallFileWithDir(
