@@ -45,12 +45,10 @@ The On-Demand kernel is selected at build time; there is no runtime fallback. Bi
 
 ## Consumption
 
-The manifest requires Zig 0.17.0 and declares no Zig package dependencies. For a sibling checkout, add this path dependency to `build.zig.zon`:
+The manifest requires Zig 0.17.0 and declares no Zig package dependencies. Add simdjson to your consumer's `build.zig.zon` with:
 
-```zon
-.dependencies = .{
-    .simdjson = .{ .path = "../simdjson" },
-},
+```sh
+zig fetch --save git+https://github.com/CoffeeImpliesCode/simdjson#v5.0.2
 ```
 
 The module and native artifact are both named `simdjson`. Import the facade from a dependent build:
