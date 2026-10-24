@@ -12,7 +12,7 @@ This fork builds simdjson 5.0.2 as a C++ library with a C ABI and Zig facade. Th
 | `zig/root.zig` | Exposes typed views over copied records and maps bridge and upstream errors to Zig errors. |
 | `runtime/graph.zig` | Builds runtime dispatch from translated declarations and shares one loader core, so runtime mode does not link the artifact. |
 | `runtime/generate.zig` | Generates dispatch wrappers and patched translations so routed calls retain the translated C types. |
-| `runtime/library.zig` | Defines the provider ABI and checks version, exports, record behavior and parsing before publication. |
+| `runtime/library.zig` | Uses translated document handles and checks provider version, exports, record behavior and parsing before publication. |
 | `runtime/loader.zig` | Loads one explicit path or system name and publishes one provider without automatic search, unload or replacement. |
 | `runtime/sync.h` | Declares prefixed locks, waits, wakeups and thread identity so SDK instances do not share symbols. |
 | `runtime/sync.c` | Implements those symbols with Windows locks, POSIX threads, or single-threaded WASI/Emscripten no-ops. |
@@ -31,7 +31,7 @@ The bridge checks arguments with comparisons, keeps bridge statuses separate fro
 - The default `-Dlinkage=static` builds an archive. Dynamic builds use upstream ABI version 34, not release version 5.0.2. No system-library mode exists.
 - `-Druntime=true` changes dispatch, not delivery. The package still builds and installs its artifact, while the facade loads an explicit provider and links no archive.
 - COFF shared builds use a generated `.def` export list. ELF builds have no version script. Darwin builds do not restrict exports to the eleven C entry points, so consumers must resolve names explicitly.
-- `check` compiles the facade, tests and example for the six required targets. It does not run them.
+- `check` compiles the library, facade, tests and example for the six required targets without running them. Dynamic and runtime-loading configurations omit targets without loaders from the native matrix; an explicit `-Dtarget` checks only that target.
 - The nested consumer uses make-time cache and install-prefix paths; 0.17 hides executor and libc-runtime settings, so cross-target builds install instead of running.
 - Zig 0.17 nested builds inherit `ZIG_GLOBAL_CACHE_DIR` and `ZIG_LIB_DIR`; `zig build` rejects the corresponding command-line flags.
 

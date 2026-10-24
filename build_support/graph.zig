@@ -164,14 +164,7 @@ pub const bridge_abi_symbols = [_][]const u8{
     "simdjson_br_walk",
 };
 
-/// The six targets this SDK's `check` matrix compiles.
-///
-/// Not a preference list and not a subset: `zig build check` walks exactly
-/// these, compiling the core, the bridge, the translated header, the facade,
-/// the tests and the example for each without running any of them. `devenv.nix`
-/// names the same six in its `sdk:check` task and `package.nix:105-108` names
-/// the same six when it says what a Nix build is *not*, which is why the list
-/// lives here and is referred to rather than restated.
+/// Default static check targets; dynamic and runtime checks omit targets without loaders.
 ///
 ///   * `x86_64-linux-gnu` and `aarch64-linux-gnu` -- the two Linux ABIs, and
 ///     the two answers to the SIMD question: at `-Dcpu=baseline` x86-64

@@ -30,7 +30,7 @@ The Zig facade wraps On-Demand only. The installed upstream C++ headers retain t
 
 ## Support matrix
 
-The build graph's `check` step compiles the library, facade, tests and example for these targets; it does not run them.
+The build graph's `check` step compiles the library, facade, tests and example for these targets; it does not run them. Dynamic and runtime-loading configurations omit targets without loaders from the native check matrix. An explicit `-Dtarget` checks only that target.
 
 | Target | Boundary |
 |---|---|
@@ -61,3 +61,5 @@ exe_mod.addImport("simdjson", dep.module("simdjson"));
 ```
 
 Build options are `-Dtarget`, `-Dcpu` and `-Doptimize` (Zig standard options), `-Dlinkage=static|dynamic` (default `static`) and `-Druntime=true|false` (default `false`). `-Dcpu` selects the compiled kernel; it does not enable runtime fallback. A dynamic request on a target without a loader is refused rather than replaced with a static archive. On ELF, the shared file is `libsimdjson.so.34.0.0` with SONAME `libsimdjson.so.34`.
+
+In runtime mode, `zig build consumer -Druntime=true` forwards `SIMDJSON_PROVIDER` to the nested consumer build. The smoke example uses `SIMDJSON_SMOKE_PROVIDER`. Both accept `-- --provider <path>` instead of an environment variable and require a shared library exporting the fork's bridge ABI.

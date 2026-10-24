@@ -915,7 +915,8 @@ test "the twitter fixture: 631515 bytes, walked to a counted total" {
 test "the raw two-pass convention: a NULL buffer sizes, a short buffer is refused" {
     // A null output buffer reports required length before filling.
     var length: usize = 0;
-    try expectStatus(simdjson.c.SIMDJSON_BRIDGE_OK,
+    try expectStatus(
+        simdjson.c.SIMDJSON_BRIDGE_OK,
         simdjson.c.simdjson_br_version(null, 0, &length),
     );
     try testing.expect(length > 0);
@@ -923,19 +924,22 @@ test "the raw two-pass convention: a NULL buffer sizes, a short buffer is refuse
     // A short buffer reports required length without truncating.
     var small: [1]u8 = undefined;
     length = 0;
-    try expectStatus(simdjson.c.SIMDJSON_BRIDGE_BUFFER_TOO_SMALL,
+    try expectStatus(
+        simdjson.c.SIMDJSON_BRIDGE_BUFFER_TOO_SMALL,
         simdjson.c.simdjson_br_version(&small, small.len, &length),
     );
     try testing.expect(length > small.len);
 
     // A null length pointer is invalid.
-    try expectStatus(simdjson.c.SIMDJSON_BRIDGE_INVALID_ARGUMENT,
+    try expectStatus(
+        simdjson.c.SIMDJSON_BRIDGE_INVALID_ARGUMENT,
         simdjson.c.simdjson_br_version(null, 0, null),
     );
 
     const exact = try testing.allocator.alloc(u8, length + 1);
     defer testing.allocator.free(exact);
-    try expectStatus(simdjson.c.SIMDJSON_BRIDGE_OK,
+    try expectStatus(
+        simdjson.c.SIMDJSON_BRIDGE_OK,
         simdjson.c.simdjson_br_version(exact.ptr, exact.len, &length),
     );
     try testing.expectEqual(exact.len - 1, length);
@@ -949,7 +953,8 @@ test "the raw route: an index past the implementation list is refused" {
     for (0..count) |n| {
         var name_buffer: [64]u8 = undefined;
         var length: usize = 0;
-        try expectStatus(simdjson.c.SIMDJSON_BRIDGE_OK,
+        try expectStatus(
+            simdjson.c.SIMDJSON_BRIDGE_OK,
             simdjson.c.simdjson_br_available_implementation_name(n, &name_buffer, name_buffer.len, &length),
         );
         try testing.expect(length > 0);
@@ -957,7 +962,8 @@ test "the raw route: an index past the implementation list is refused" {
     }
 
     var length: usize = 0;
-    try expectStatus(simdjson.c.SIMDJSON_BRIDGE_INVALID_ARGUMENT,
+    try expectStatus(
+        simdjson.c.SIMDJSON_BRIDGE_INVALID_ARGUMENT,
         simdjson.c.simdjson_br_available_implementation_name(count, null, 0, &length),
     );
 }
@@ -1007,7 +1013,8 @@ test "the raw route: input_size reports the call, not the document" {
     for (cases) |case| {
         var handle: ?*simdjson.c.struct_simdjson_bridge_document = null;
         var upstream: i32 = 0;
-        try expectStatus(simdjson.c.SIMDJSON_BRIDGE_OK,
+        try expectStatus(
+            simdjson.c.SIMDJSON_BRIDGE_OK,
             simdjson.c.simdjson_br_open(case.json.ptr, case.json.len, &handle, &upstream),
         );
         try testing.expectEqual(@as(i32, 0), upstream);
@@ -1015,7 +1022,8 @@ test "the raw route: input_size reports the call, not the document" {
         defer simdjson.c.simdjson_br_destroy(handle.?);
 
         var reported: usize = 0;
-        try expectStatus(simdjson.c.SIMDJSON_BRIDGE_OK,
+        try expectStatus(
+            simdjson.c.SIMDJSON_BRIDGE_OK,
             simdjson.c.simdjson_br_input_size(handle.?, &reported),
         );
         try testing.expectEqual(case.size, reported);
@@ -1039,13 +1047,15 @@ test "the raw route: a NULL pointer is refused, and a NULL with length 0 is a ra
     // Parse rejects null pointers, even for a zero-length range.
     var handle: ?*simdjson.c.struct_simdjson_bridge_document = null;
     var upstream: i32 = 0;
-    try expectStatus(simdjson.c.SIMDJSON_BRIDGE_INVALID_ARGUMENT,
+    try expectStatus(
+        simdjson.c.SIMDJSON_BRIDGE_INVALID_ARGUMENT,
         simdjson.c.simdjson_br_open(null, 0, &handle, &upstream),
     );
     try testing.expect(handle == null);
 
     const empty = "";
-    try expectStatus(simdjson.c.SIMDJSON_BRIDGE_UPSTREAM_ERROR,
+    try expectStatus(
+        simdjson.c.SIMDJSON_BRIDGE_UPSTREAM_ERROR,
         simdjson.c.simdjson_br_open(empty.ptr, 0, &handle, &upstream),
     );
     try testing.expectEqual(@as(i32, 13), upstream); // upstream's EMPTY
@@ -1065,14 +1075,16 @@ test "the raw route: a short buffer is a capacity refusal, not a malformed docum
 
     var handle: ?*simdjson.c.struct_simdjson_bridge_document = null;
     var upstream: i32 = 0;
-    try expectStatus(simdjson.c.SIMDJSON_BRIDGE_OK,
+    try expectStatus(
+        simdjson.c.SIMDJSON_BRIDGE_OK,
         simdjson.c.simdjson_br_open(json.ptr, json.len, &handle, &upstream),
     );
     defer simdjson.c.simdjson_br_destroy(handle.?);
 
     var nodes: usize = 0;
     var blobs: usize = 0;
-    try expectStatus(simdjson.c.SIMDJSON_BRIDGE_OK,
+    try expectStatus(
+        simdjson.c.SIMDJSON_BRIDGE_OK,
         simdjson.c.simdjson_br_walk(handle.?, null, 0, &nodes, null, 0, &blobs, &upstream),
     );
     try testing.expectEqual(@as(usize, 6), nodes);
@@ -1084,7 +1096,8 @@ test "the raw route: a short buffer is a capacity refusal, not a malformed docum
     var got_nodes: usize = 0;
     var got_blobs: usize = 0;
     upstream = 0;
-    try expectStatus(simdjson.c.SIMDJSON_BRIDGE_BUFFER_TOO_SMALL,
+    try expectStatus(
+        simdjson.c.SIMDJSON_BRIDGE_BUFFER_TOO_SMALL,
         simdjson.c.simdjson_br_walk(
             handle.?,
             &tiny_nodes,
@@ -1104,7 +1117,8 @@ test "the raw route: a short buffer is a capacity refusal, not a malformed docum
     got_nodes = 0;
     got_blobs = 0;
     upstream = 0;
-    try expectStatus(simdjson.c.SIMDJSON_BRIDGE_OK,
+    try expectStatus(
+        simdjson.c.SIMDJSON_BRIDGE_OK,
         simdjson.c.simdjson_br_walk(
             handle.?,
             &records,

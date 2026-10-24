@@ -192,13 +192,13 @@ pub fn Config(comptime dispatch: type) type {
 
             {
                 // Exercise one open, sizing walk, filling walk, and destroy.
-                var doc: ?*anyopaque = null;
-                var error: i32 = 0;
+                var doc: ?*dispatch.struct_simdjson_bridge_document = null;
+                var error_code: i32 = 0;
                 const open = dst.simdjson_br_open(
                     probe_document.ptr,
                     probe_document.len,
                     &doc,
-                    &error,
+                    &error_code,
                 );
                 if (open != bridge_ok or doc == null) {
                     return "simdjson_br_open refused the literal document " ++
@@ -206,7 +206,7 @@ pub fn Config(comptime dispatch: type) type {
                         "the provider behind them is not a working simdjson";
                 }
                 defer dst.simdjson_br_destroy(doc);
-                if (error != 0) {
+                if (error_code != 0) {
                     return "simdjson_br_open reported success and an error code " ++
                         "at the same time, so its two out-parameters cannot be " ++
                         "trusted";
@@ -223,7 +223,7 @@ pub fn Config(comptime dispatch: type) type {
 
                 var node_count: usize = 0;
                 var blob_len: usize = 0;
-                if (dst.simdjson_br_walk(doc, null, 0, &node_count, null, 0, &blob_len, &error) != bridge_ok) {
+                if (dst.simdjson_br_walk(doc, null, 0, &node_count, null, 0, &blob_len, &error_code) != bridge_ok) {
                     return "the sizing simdjson_br_walk on the literal document " ++
                         "{\"a\":1} did not succeed, so the two-pass walk " ++
                         "convention does not hold across this ABI";
@@ -245,13 +245,13 @@ pub fn Config(comptime dispatch: type) type {
                     &blobs,
                     blobs.len,
                     &blob_len,
-                    &error,
+                    &error_code,
                 ) != bridge_ok) {
                     return "the filling simdjson_br_walk on the literal document " ++
                         "{\"a\":1} did not succeed with the capacities the sizing " ++
                         "walk reported, so the two passes cannot be the same walk";
                 }
-                if (error != 0) {
+                if (error_code != 0) {
                     return "simdjson_br_walk reported success and an error code " ++
                         "at the same time, so its two out-parameters cannot be " ++
                         "trusted";

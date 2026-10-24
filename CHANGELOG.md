@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Forward `SIMDJSON_PROVIDER` through the nested consumer build for runtime loading with static or dynamic delivery.
+- Fix runtime provider validation to use the translated document handle with static or dynamic delivery.
+- Fix dynamic and runtime builds by filtering static-only check targets, retaining library checks in runtime mode, and correcting a reserved identifier in provider validation.
 - Port to Zig 0.17.0.
 - Consumer builds no longer use optional third-party executors; cross-target builds install to the SDK prefix.
 - Validate UTF-8 before stage 1 so invalid input returns `UTF8_ERROR` on every kernel.

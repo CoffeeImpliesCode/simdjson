@@ -32,7 +32,6 @@ const fixture_dir = "testdata";
 const paths_module = "simdjson_paths";
 
 /// Create an import that resolves the fixture path at build time.
-
 fn addPathsModule(b: *std.Build) *std.Build.Step.Options {
     const options = b.addOptions();
     options.addOptionPathDirectory("fixture_dir", b.path(fixture_dir));
@@ -155,15 +154,17 @@ pub fn build(b: *std.Build) void {
     const check_step = b.step(
         "check",
         "Compile the core, the bridge, the translated header, the facade, the " ++
-            "tests and the example for all six required targets without running " ++
+            "tests and the example for the supported matrix targets without running " ++
             "any of them",
     );
     if (!target.query.isNative()) {
-        add_target_check(b, check_step, target.query, optimize, linkage, runtime_loaded);
+        add_target_check(b, check_step, target, optimize, linkage, runtime_loaded);
     } else {
-        // Apply the selected linkage to each required target.
+        // Loader-dependent configurations exclude static-only matrix targets.
         for (graph.required_targets) |query| {
-            add_target_check(b, check_step, query, optimize, linkage, runtime_loaded);
+            const cross_target = b.resolveTargetQuery(query);
+            if ((linkage == .dynamic or runtime_loaded) and !graph.targetHasDynamicLinker(cross_target)) continue;
+            add_target_check(b, check_step, cross_target, optimize, linkage, runtime_loaded);
         }
     }
 
@@ -222,12 +223,11 @@ pub fn build(b: *std.Build) void {
 fn add_target_check(
     b: *std.Build,
     step: *std.Build.Step,
-    query: std.Target.Query,
+    cross_target: std.Build.ResolvedTarget,
     optimize: std.lang.Optimize,
     linkage: std.lang.LinkMode,
     runtime_loaded: bool,
 ) void {
-    const cross_target = b.resolveTargetQuery(query);
     // Name each target's steps with its triple.
     const triple = cross_target.result.zigTriple(b.allocator) catch @panic("unspellable target");
 
@@ -236,6 +236,7 @@ fn add_target_check(
         .runtime_loaded = runtime_loaded,
         .public = false,
     });
+    step.dependOn(&cross.library.step);
 
     const test_mod = b.createModule(.{
         .root_source_file = b.path(test_source),
@@ -291,7 +292,7 @@ fn runConsumer(
     const run = b.addSystemCommand(&.{ b.graph.zig_exe, "build" });
     run.setName("consumer package");
     run.setCwd(b.path("consumer"));
-    inline for (.{ "ZIG_GLOBAL_CACHE_DIR", "ZIG_LIB_DIR" }) |key| {
+    inline for (.{ "ZIG_GLOBAL_CACHE_DIR", "ZIG_LIB_DIR", "SIMDJSON_PROVIDER" }) |key| {
         if (b.graph.environ_map.get(key)) |value| {
             run.setEnvironmentVariable(key, value);
         }
